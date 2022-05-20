@@ -190,6 +190,26 @@ int main() {
 
 	float mixLinear = 0.3f;
 
+	auto printVec = [](voi::Vec4i v) {
+		std::cout << v.x << " " << v.y << " " << v.z << " " << v.w << "\n";
+	};
+	auto printMat = [&printVec](voi::Mat4i m) {
+		for (auto i : m.m) {
+			printVec(i);
+		}
+	};
+
+	voi::Mat4i A{ {
+		{2,0,0,5},
+		{0,3,0,5},
+		{0,0,2,5},
+		{0,0,0,1}
+	} };
+
+	voi::Vec4i vA{ 1,1,1,1 };
+
+	printVec(A * vA);
+
 	float elapsed = glfwGetTime();
 	float prevTime = glfwGetTime();
 
