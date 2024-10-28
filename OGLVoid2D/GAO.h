@@ -2,52 +2,80 @@
 
 #include <iostream>
 #include <vector>
+#include <numeric>
 #include <glad/glad.h>
 #include "Lineal.h"
 
-#ifndef MAX_GAO_SIZE
-#define MAX_GAO_SIZE 1
-#endif // !MAX_GAO_SIZE
-
-template<typename T, typename U>
-struct VABO {
-	std::vector <T> Pos2DVec;
-	std::vector <U> colorVec;
-	std::vector <voi::Vec2f> TexCordVec;
-};
-
-typedef VABO<voi::Vec2f, voi::Vec3f> VABO_2D_RGB;
-typedef VABO<voi::Vec3f, voi::Vec3f> VABO_3D_RGB;
-typedef VABO<voi::Vec2f, voi::Vec4f> VABO_2D_RGBA;
-typedef VABO<voi::Vec3f, voi::Vec4f> VABO_3D_RGBA;
+#include "Pixel.h"
 
 class GAO {
 
-	static const int MAX_SIZE = MAX_GAO_SIZE;
+	const uint32_t COUNT;
 	
-	uint32_t VAOs[MAX_SIZE];
-	uint32_t VBOs[MAX_SIZE];
-	uint32_t EBOs[MAX_SIZE];
+	uint32_t *VAOs = new uint32_t[COUNT];
+	uint32_t *VBOs = new uint32_t[COUNT];
+	uint32_t *EBOs = new uint32_t[COUNT];
+
+	struct BOsInfo {
+		size_t capacity = 0;
+		size_t size = 0;
+		GLenum usage = GL_DYNAMIC_DRAW;
+	};
+
+	BOsInfo *VBOsInfo = new BOsInfo[COUNT];
+	BOsInfo *EBOsInfo = new BOsInfo[COUNT];
 
 public:
-	GAO(){
-		glGenVertexArrays(MAX_SIZE, VAOs);
-		glGenBuffers(MAX_SIZE, VBOs);
-		glGenBuffers(MAX_SIZE, EBOs);
-		for (int i = 0; i < MAX_SIZE; i++) {
+	GAO(uint32_t count): COUNT(count){
+
+		glGenVertexArrays(COUNT, VAOs);
+		glGenBuffers(COUNT, VBOs);
+		glGenBuffers(COUNT, EBOs);
+		for (int i = 0; i < COUNT; i++) {
 			glBindVertexArray(VAOs[i]);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[i]);
 			glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
 		}
 	}
 	~GAO() {
-		glDeleteVertexArrays(MAX_SIZE, VAOs);
-		glDeleteBuffers(MAX_SIZE, VBOs);
-		glDeleteBuffers(MAX_SIZE, EBOs);
+		if (VAOs != nullptr) {
+			glDeleteVertexArrays(COUNT, VAOs);
+			delete[] VAOs;
+		}
+		if (VBOs != nullptr) {
+			glDeleteBuffers(COUNT, VBOs);
+			delete[] VBOs;
+		}
+		if (EBOs != nullptr) {
+			glDeleteBuffers(COUNT, EBOs);
+			delete[] EBOs;
+		}
+
+		if (VBOsInfo != nullptr) delete[] VBOsInfo;
+		if (EBOsInfo != nullptr) delete[] EBOsInfo;
+	}
+
+	uint32_t getVAO(uint32_t i) {
+		if (i < COUNT) {
+			return VAOs[i];
+		}
+		return 0;
+	}
+	uint32_t getVBO(uint32_t i) {
+		if (i < COUNT) {
+			return VBOs[i];
+		}
+		return 0;
+	}
+	uint32_t getEBO(uint32_t i) {
+		if (i < COUNT) {
+			return EBOs[i];
+		}
+		return 0;
 	}
 
 	void bind(uint32_t i){
-		if (i < MAX_SIZE) {
+		if (i < COUNT) {
 			glBindVertexArray(VAOs[i]);
 		}
 		else {
@@ -55,7 +83,8 @@ public:
 		}
 	}
 	void enable(uint32_t i, const std::vector<uint32_t>& atrrs) {
-		if (i < MAX_SIZE) {
+		if (i < COUNT) {
+			bind(i);
 			for (auto n : atrrs) {
 				glEnableVertexAttribArray(n);
 			}
@@ -65,201 +94,124 @@ public:
 		}
 	}
 
-	void setElBufferData(uint32_t i, const std::vector<uint32_t>& elData, GLenum usage) {
-		if (i < MAX_SIZE) {
+	void setElBufferData(uint32_t i, const std::vector<uint32_t>& elData, GLenum usage, bool resize = false) {
+		if (i < COUNT) {
 			bind(i);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, elData.size() * sizeof(uint32_t), elData.data(), usage);
+
+			const size_t prevCapacity = EBOsInfo[i].capacity;
+			const size_t newSize = elData.size() * sizeof(uint32_t);
+
+			if (resize || newSize != prevCapacity) {
+				if (newSize < 1000 * sizeof(uint32_t)) {
+					glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1000 * sizeof(uint32_t), elData.data(), EBOsInfo[i].usage);
+					EBOsInfo[i].capacity = 1000 * sizeof(uint32_t);
+					EBOsInfo[i].size = newSize;
+				}
+				else {
+					glBufferData(GL_ELEMENT_ARRAY_BUFFER, newSize, elData.data(), EBOsInfo[i].usage);
+					EBOsInfo[i].capacity = newSize;
+					EBOsInfo[i].size = newSize;
+				}
+
+			}
+			else {
+				glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, newSize, elData.data());
+				EBOsInfo[i].size = newSize;
+			}
 		}
 		else {
 			throw "Outside of range Exception";
 		}
 	}
-	void setVerBufferData(uint32_t i, const std::vector<voi::Vec2f>& pos, GLenum usage) {
-		if (i < MAX_SIZE) {
-			bind(i);
-			std::vector<float> vertData;
-			vertData.reserve(pos.size() * 3);
 
-			for (int a = 0; a < pos.size(); a++) {
-				vertData.emplace_back(pos[a].x);
-				vertData.emplace_back(pos[a].y);
-				vertData.emplace_back(0.0f);
+	void defineVerBufferData(uint32_t i, const std::vector<uint32_t>& attributes, GLenum usage = GL_DYNAMIC_DRAW, uint32_t size = 1000, const std::vector<float>& vertData = {}) {
+		if (i < COUNT) {
+			bind(i);
+			uint32_t total = std::accumulate(attributes.begin(), attributes.end(), 0);
+			uint32_t sum = 0;
+			for (uint32_t i = 0; i < attributes.size(); i++) {
+				glVertexAttribPointer(i, attributes[i], GL_FLOAT, GL_FALSE, total * sizeof(float), (void*)(sum * sizeof(float)));
+				sum += attributes[i];
+
 			}
 
-			glBufferData(GL_ARRAY_BUFFER, vertData.size() * sizeof(float), vertData.data(), usage);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			void *data;
+
+			if (vertData.size() > 0) {
+				const size_t newSize = vertData.size()* sizeof(float);
+				VBOsInfo[i] = {
+					newSize,
+					newSize,
+					usage
+				};
+
+				data = (void*)vertData.data();
+			}
+			else {
+				VBOsInfo[i] = {
+					size * total * sizeof(float),
+					0,
+					usage
+				};
+
+				data = NULL;
+			}
+
+			glBufferData(GL_ARRAY_BUFFER, VBOsInfo[i].capacity, data, usage);
+
+
 		}
 		else {
 			throw "Outside of range Exception";
 		}
 	}
-	void setVerBufferData(uint32_t i, const std::vector<voi::Vec3f>& pos, GLenum usage) {
-		if (i < MAX_SIZE) {
-			bind(i);
-			std::vector<float> vertData;
-			vertData.reserve(pos.size() * 3);
 
-			for (int a = 0; a < pos.size(); a++) {
-				vertData.emplace_back(pos[a].x);
-				vertData.emplace_back(pos[a].y);
-				vertData.emplace_back(pos[a].z);
+	void setVerBufferData(uint32_t i, const std::vector<float>& vertData, bool resize = false) {
+		if (i < COUNT) {
+			bind(i);
+
+			const size_t prevCapacity = VBOsInfo[i].capacity;
+			const size_t newSize = vertData.size() * sizeof(float);
+
+			if (resize || newSize > prevCapacity) {
+				glBufferData(GL_ARRAY_BUFFER, newSize, vertData.data(), VBOsInfo[i].usage);
+				VBOsInfo[i].capacity = newSize;
+				VBOsInfo[i].size = newSize;
+			}
+			else {
+				glBufferSubData(GL_ARRAY_BUFFER, 0, newSize, vertData.data());
+				VBOsInfo[i].size = newSize;
 			}
 
-			glBufferData(GL_ARRAY_BUFFER, vertData.size() * sizeof(float), vertData.data(), usage);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 		}
 		else {
 			throw "Outside of range Exception";
 		}
 	}
-	/*TODO: create color type in voi*/
-	void setVerBufferData(uint32_t i, const std::vector<voi::Vec2f>& pos, const std::vector<voi::Vec3f>& color, GLenum usage) {
-		if (i < MAX_SIZE) {
+
+	void addVerBufferData(uint32_t i, const std::vector<float>& vertData) {
+		if (i < COUNT) {
 			bind(i);
-			std::vector<float> vertData;
-			vertData.reserve(pos.size() * 6);
+			const size_t size = VBOsInfo[i].size;
+			const size_t capacity = VBOsInfo[i].capacity;
 
-			for (int a = 0; a < pos.size(); a++) {
-				vertData.emplace_back(pos[a].x);
-				vertData.emplace_back(pos[a].y);
-				vertData.emplace_back(0.0f);
-				vertData.emplace_back(color[a].x);
-				vertData.emplace_back(color[a].y);
-				vertData.emplace_back(color[a].z);
+			const size_t addedSize = vertData.size() * sizeof(float);
+			if (size + addedSize <= capacity) {
+				glBufferSubData(GL_ARRAY_BUFFER, size, addedSize, vertData.data());
+				VBOsInfo[i].size = size + addedSize;
 			}
-
-			glBufferData(GL_ARRAY_BUFFER, vertData.size() * sizeof(float), vertData.data(), usage);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+			else {
+				throw "Run out of allocated buffer capacity";
+			}
 		}
 		else {
 			throw "Outside of range Exception";
 		}
 	}
-	void setVerBufferData(uint32_t i, const std::vector<voi::Vec3f>& pos, const std::vector<voi::Vec3f>& color, GLenum usage) {
-		if (i < MAX_SIZE) {
-			bind(i);
-			std::vector<float> vertData;
-			vertData.reserve(pos.size() * 3);
 
-			for (int a = 0; a < pos.size(); a++) {
-				vertData.emplace_back(pos[a].x);
-				vertData.emplace_back(pos[a].y);
-				vertData.emplace_back(pos[a].z);
-				vertData.emplace_back(color[a].x);
-				vertData.emplace_back(color[a].y);
-				vertData.emplace_back(color[a].z);
-			}
-
-			glBufferData(GL_ARRAY_BUFFER, vertData.size() * sizeof(float), vertData.data(), usage);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-		}
-		else {
-			throw "Outside of range Exception";
-		}
-	}
-	void setVerBufferData(uint32_t i, const std::vector<voi::Vec2f>& pos, const std::vector<voi::Vec2f>& texCord, GLenum usage) {
-		if (i < MAX_SIZE) {
-			bind(i);
-			std::vector<float> vertData;
-			vertData.reserve(pos.size() * 3);
-
-			for (int a = 0; a < pos.size(); a++) {
-				vertData.emplace_back(pos[a].x);
-				vertData.emplace_back(pos[a].y);
-				vertData.emplace_back(0.0f);
-				vertData.emplace_back(texCord[a].x);
-				vertData.emplace_back(texCord[a].y);
-			}
-
-			glBufferData(GL_ARRAY_BUFFER, vertData.size() * sizeof(float), vertData.data(), usage);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-		}
-		else {
-			throw "Outside of range Exception";
-		}
-	}
-	void setVerBufferData(uint32_t i, const std::vector<voi::Vec3f>& pos, const std::vector<voi::Vec2f>& texCord, GLenum usage) {
-		if (i < MAX_SIZE) {
-			bind(i);
-			std::vector<float> vertData;
-			vertData.reserve(pos.size() * 3);
-
-			for (int a = 0; a < pos.size(); a++) {
-				vertData.emplace_back(pos[a].x);
-				vertData.emplace_back(pos[a].y);
-				vertData.emplace_back(pos[a].z);
-				vertData.emplace_back(texCord[a].x);
-				vertData.emplace_back(texCord[a].y);
-			}
-
-			glBufferData(GL_ARRAY_BUFFER, vertData.size() * sizeof(float), vertData.data(), usage);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-		}
-		else {
-			throw "Outside of range Exception";
-		}
-	}
-	void setVerBufferData(
-		uint32_t i,
-		const std::vector<voi::Vec2f>& pos,
-		const std::vector<voi::Vec3f>& color,
-		std::vector<voi::Vec2f> texcord,
-		GLenum usage)
-	{
-		if (i < MAX_SIZE) {
-			bind(i);
-			std::vector<float> vertData;
-			vertData.reserve(pos.size() * 6);
-
-			for (int a = 0; a < pos.size(); a++) {
-				vertData.emplace_back(pos[a].x);
-				vertData.emplace_back(pos[a].y);
-				vertData.emplace_back(0.0f);
-				vertData.emplace_back(color[a].x);
-				vertData.emplace_back(color[a].y);
-				vertData.emplace_back(color[a].z);
-				vertData.emplace_back(texcord[a].x);
-				vertData.emplace_back(texcord[a].y);
-			}
-
-			glBufferData(GL_ARRAY_BUFFER, vertData.size() * sizeof(float), vertData.data(), usage);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-		}
-		else {
-			throw "Outside of range Exception";
-		}
-	}
-	void setVerBufferData(
-		uint32_t i,
-		const std::vector<voi::Vec3f>& pos,
-		const std::vector<voi::Vec3f>& color,
-		std::vector<voi::Vec2f> texcord,
-		GLenum usage)
-	{
-		if (i < MAX_SIZE) {
-			bind(i);
-			std::vector<float> vertData;
-			vertData.reserve(pos.size() * 6);
-
-			for (int a = 0; a < pos.size(); a++) {
-				vertData.emplace_back(pos[a].x);
-				vertData.emplace_back(pos[a].y);
-				vertData.emplace_back(pos[a].z);
-				vertData.emplace_back(color[a].x);
-				vertData.emplace_back(color[a].y);
-				vertData.emplace_back(color[a].z);
-				vertData.emplace_back(texcord[a].x);
-				vertData.emplace_back(texcord[a].y);
-			}
-
-			glBufferData(GL_ARRAY_BUFFER, vertData.size() * sizeof(float), vertData.data(), usage);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	void clearVerBufferData(uint32_t i) {
+		if (i < COUNT) {
+			VBOsInfo[i].size = 0;
 		}
 		else {
 			throw "Outside of range Exception";

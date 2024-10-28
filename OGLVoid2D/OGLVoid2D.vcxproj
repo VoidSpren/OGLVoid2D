@@ -78,12 +78,15 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\code\code-libraries\glfw-3.3.6.bin.WIN64\include;C:\code\code-libraries\glad\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\code\code-libraries\glfw-3.3.6.bin.WIN64\lib-vc2022;$(LibraryPath)</LibraryPath>
-    <SourcePath>C:\code\code-libraries\glad\src;$(SourcePath)</SourcePath>
+    <IncludePath>C:\Users\juanc\source\repos\OGLVoid2D\libs;C:\Users\juanc\source\repos\OGLVoid2D\libs\glfw-3.3.6.bin.WIN64\include;C:\Users\juanc\source\repos\OGLVoid2D\libs\glad\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\juanc\source\repos\OGLVoid2D\libs\glfw-3.3.6.bin.WIN64\lib-vc2022;$(LibraryPath)</LibraryPath>
+    <SourcePath>C:\Users\juanc\source\repos\OGLVoid2D\libs\glad\src;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\Users\juanc\source\repos\OGLVoid2D\libs\glfw-3.3.6.bin.WIN64\include;C:\Users\juanc\source\repos\OGLVoid2D\libs;C:\Users\juanc\source\repos\OGLVoid2D\libs\glad\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\juanc\source\repos\OGLVoid2D\libs\glfw-3.3.6.bin.WIN64\lib-vc2022;$(LibraryPath)</LibraryPath>
+    <SourcePath>C:\Users\juanc\source\repos\OGLVoid2D\libs\glad\src;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -140,6 +143,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -148,9 +152,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lineal.h" />
+    <ClInclude Include="Pixel.h" />
+    <ClInclude Include="RenderBatch.hpp" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="GAO.h" />
     <ClInclude Include="stb_image.h" />
+    <ClInclude Include="utilDefs.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="default.frag" />

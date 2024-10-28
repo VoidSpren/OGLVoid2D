@@ -5,11 +5,9 @@ in vec2 vTexCord;
 
 out vec4 fColor;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
-
-uniform float mixLinear;
+uniform sampler2D tex;
 
 void main(){
-	fColor = mix(texture(tex0, vTexCord), texture(tex1, vTexCord), mixLinear);
+	fColor = mix(texture(tex, vTexCord), vec4(vColor.rgb,1.0), vColor.a);
+	//fColor = vColor;
 }

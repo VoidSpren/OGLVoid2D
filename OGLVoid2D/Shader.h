@@ -21,7 +21,6 @@ public:
 		std::string vertexCode = vertexStream.str(), fragmentCode = fragmentStream.str();
 
 		programLinking(vertexCode, fragmentCode);
-		use();
 	}
 
 	void use() { glUseProgram(id); }

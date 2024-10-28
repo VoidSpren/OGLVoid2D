@@ -23,8 +23,8 @@ namespace voi {
 		Vec2(T x, T y) : x(x), y(y) {}
 		Vec2(const Vec2& other) : x(other.x), y(other.y) {}
 
-		inline T min() { return x < y ? x : y; }
-		inline T max() { return x > y ? x : y; }
+		inline T min() const { return x < y ? x : y; }
+		inline T max() const { return x > y ? x : y; }
 		inline static T dotProd(const Vec2& a, const Vec2& b) { return a.x * b.x + a.y * b.y; }
 		static Vec2 unit(const Vec2& in) {
 			float l = sqrtf(in.x * in.x + in.y * in.y);
@@ -70,6 +70,8 @@ namespace voi {
 		Vec3() : x(0), y(0), z(0) {}
 		Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
 		Vec3(const Vec3& other) : x(other.x), y(other.y), z(other.z) {}
+
+		inline T min() const {}
 
 		inline static T dotProd(const Vec3& a, const Vec3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 		inline static Vec3 cross(const Vec3& a, const Vec3& b) { return { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x }; }
