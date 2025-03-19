@@ -3,6 +3,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <array>
+#include <algorithm>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -11,6 +13,7 @@
 #include "Lineal.h"
 #include "GAO.h"
 #include "Renderer.h"
+#include "utilDefs.h"
 #include <random>
 
 /*program created following the examples and tutorials from https://learnopengl.com*/
@@ -40,27 +43,15 @@ class Testing : public voi::VoiOGLEngine {
 	std::uniform_real_distribution<float> getRandPos{ -1.0f,1.0f };
 	std::uniform_real_distribution<float> getRandNormal{ 0.0f,1.0f };
 
-	voi::Vec2f ap1 = { -0.5,-0.5 };
-	voi::Vec2f bp1 = { -0.5, 0.5 };
-
-	voi::Vec2f ap2 = { -0.5, 0.5 };
-	voi::Vec2f bp2 = {  0.5, 0.5 };
-
-	voi::Vec2f ap3 = {  0.5, 0.5 };
-	voi::Vec2f bp3 = {  0.5,-0.5 };
-
-	voi::Vec2f ap4 = {  0.5,-0.5 };
-	voi::Vec2f bp4 = { -0.5,-0.5 };
-
-	voi::Pixel colorA = { 1.0f,0.0f,0.0f,1.0f };
-	voi::Pixel colorB = { 0.0f,0.0f,1.0f,1.0f };
+	std::vector<ui32> textureIndices;
 
 	int framePrevIntT = 0;
 	int prevFrameCount = 0;
 
 	float prevTimeInterval = 0;
 
-	float timeInterval = 1.5f;
+	float timeInterval = 2*F_PI;
+	
 
 	voi::Vec2f lerp(voi::Vec2f a, voi::Vec2f b, float t) {
 		return a + (b - a) * t;
@@ -77,29 +68,38 @@ class Testing : public voi::VoiOGLEngine {
 	}
 
 	void Begin() override {
-		//FillTriangle(lerp(ap1, bp1, 0.5f), lerp(ap2, bp2, 0.5f), lerp(ap3, bp3, 0.5f));
+		textureIndices.reserve(32);
+
+		int width, height, nChanels;
+		auto data = stbi_load("awesomeface.png", &width, &height, &nChanels, 4);
+		textureIndices.push_back(AddTexture(width, height, data));
+		stbi_image_free(data);
+		data = stbi_load("dimW.png", &width, &height, &nChanels, 4);
+		textureIndices.push_back(AddTexture(width, height, data));
+		stbi_image_free(data);
+
+		ChooseCurrentTextures(textureIndices[0]);
+
+
+		drawColor = { 1.f,0.f,0.f,0.1f };
+		TextureRect(-0.5f, -0.5f, 1.f, 1.f);
+
+
+		ChooseCurrentTextures(textureIndices[1]);
+
 	}
 
 	void Update(float delta) override{
 		setTitleToFramesInSecond();
-
 		//Clear();
-
-		float t = GetTotalTime() / timeInterval;
-		t = (t - (int)t)* timeInterval;
-
-		if (t < prevTimeInterval) {
-
-			drawColor = { getRandNormal(randEng), getRandNormal(randEng), getRandNormal(randEng), 1.0 };
-
-			voi::Vec2f M = { getRandPos(randEng), getRandPos(randEng) };
-			voi::Vec2f N = { getRandPos(randEng), getRandPos(randEng) };
-			voi::Vec2f O = { getRandPos(randEng), getRandPos(randEng) };
-
-			FillTriangle(M, N, O);
+		if (prevTimeInterval + delta >= timeInterval) {
+			prevTimeInterval = (prevTimeInterval + delta) - timeInterval;
+		}
+		else {
+			prevTimeInterval += delta;
 		}
 
-		prevTimeInterval = t;
+
 	}
 };
 

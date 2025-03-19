@@ -11,14 +11,20 @@
 class Shader {
 	uint32_t id;
 public:
-	Shader(const char* vertexPath, const char* fragmentPath) {
-		std::ifstream vertexFile(vertexPath), fragmentFile(fragmentPath);
-		std::stringstream vertexStream, fragmentStream;
+	Shader(const std::string& vertexStr, const std::string& fragmentStr, bool path = true) {
+		std::string vertexCode = vertexStr, fragmentCode = fragmentStr;
 
-		vertexStream << vertexFile.rdbuf();
-		fragmentStream << fragmentFile.rdbuf();
+		if (path) {
+			std::ifstream vertexFile(vertexStr), fragmentFile(fragmentStr);
+			std::stringstream vertexStream, fragmentStream;
 
-		std::string vertexCode = vertexStream.str(), fragmentCode = fragmentStream.str();
+			vertexStream << vertexFile.rdbuf();
+			fragmentStream << fragmentFile.rdbuf();
+
+			vertexCode = vertexStream.str(); fragmentCode = fragmentStream.str();
+
+			vertexFile.close(); fragmentFile.close();
+		}
 
 		programLinking(vertexCode, fragmentCode);
 	}
@@ -95,7 +101,7 @@ private:
 		return success;
 	}
 
-	void programLinking(std::string& vertexCode, std::string& fragmentCode) {
+	void programLinking(const std::string& vertexCode,const std::string& fragmentCode) {
 		id = glCreateProgram();
 
 		/*compile shaders*/

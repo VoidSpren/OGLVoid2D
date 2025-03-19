@@ -9,5 +9,4 @@ uniform sampler2D tex;
 
 void main(){
 	fColor = mix(texture(tex, vTexCord), vec4(vColor.rgb,1.0), vColor.a);
-	//fColor = vColor;
 }

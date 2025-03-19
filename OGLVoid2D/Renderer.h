@@ -14,9 +14,16 @@
 #include "RenderBatch.hpp"
 
 namespace voi {
+	struct BatchGroup {
+		ui32 index;
+		ui32 count;
+		ui32 position;
+		ui32 current;
+	};
+
 	class VoiOGLEngine {
 		GLFWwindow* window;
-		Pixel clearColor;
+		Pixel clearColor = { 0.f,0.f,0.f,0.f };
 
 		GAO *mainGao;
 		std::vector<RenderBatch> batches;
@@ -28,6 +35,16 @@ namespace voi {
 		ui64 frameCount = 0;
 
 		ui32 shapeVertexCount = 0;
+
+		ui32 textures[32];
+		ui32 unasignedTexBatch = 0;
+
+		//---batches configuration---//
+		
+		// index dictates in wich place de batch group starts, count how many consecutive batches of said group there are
+		// to get the real position of a batch group, add the count of all previous batch groups
+		BatchGroup solidGroup = { 0, 1, 0, 0 };
+		BatchGroup singleTexGroup = { 1, 32, 1, 0 };
 
 	public:
 		~VoiOGLEngine() {
@@ -68,7 +85,7 @@ namespace voi {
 
 
 			/*sets opengl viewport size*/
-			glViewport(0, 0, 800, 600);
+			glViewport(0, 0, width, height);
 
 			/*sets function to callback when window is rezised*/
 			glfwSetFramebufferSizeCallback(window, viewportResize);
@@ -80,12 +97,31 @@ namespace voi {
 			glDepthFunc(GL_LEQUAL);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+			mainGao = new GAO(
+				solidGroup.count +
+				singleTexGroup.count
+			);
+			glGenTextures(
+				singleTexGroup.count
+				, textures);
 
-			mainGao = new GAO(1);
+			batches.emplace_back(mainGao, solidGroup.position, "default.vert", "default.frag"); //solidBatch
+			batches[solidGroup.position].defineVertBufferData({ 3,4 });
 
-			batches.emplace_back(mainGao, 0, "default.vert", "default.frag"); //batches[0] = plygons with textures batch
+			std::ifstream vertexFile("texture.vert"), fragmentFile("texture.frag");
+			std::stringstream vertexStream, fragmentStream;
 
-			batches[0].defineVertBufferData({ 3,4 });
+			vertexStream << vertexFile.rdbuf();
+			fragmentStream << fragmentFile.rdbuf();
+
+			std::string vertexCode = vertexStream.str(), fragmentCode = fragmentStream.str();
+
+			vertexFile.close(); fragmentFile.close();
+
+			for (int i = singleTexGroup.position; i < (singleTexGroup.position + singleTexGroup.count); i++) {
+				batches.emplace_back(mainGao, i, vertexCode.c_str(), fragmentCode.c_str(), false); //singleTexBatches
+				batches[i].defineVertBufferData({ 3,4,2 });
+			}
 		}
 
 
@@ -102,7 +138,7 @@ namespace voi {
 		}
 
 		Pixel GetClearColor() { return clearColor; }
-		void setClearColor(const Pixel &p) {
+		void SetClearColor(const Pixel &p) {
 			clearColor = p;
 			glClearColor(p.r, p.g, p.b, p.a);
 		}
@@ -115,11 +151,51 @@ namespace voi {
 
 		Pixel drawColor = { 1.0f,1.0f,1.0f,1.0f };
 
+		bool ChooseCurrentTextures(ui32 batch, ui32 unit = 0) {
+			if (batch >= 0 && batch < singleTexGroup.count) {
+				singleTexGroup.current = batch;
+				return true;
+			}
+			return false;
+		}
+
+		ui32 AddTexture(int width, int height, const ui8 *data, bool mipmap = true, GLenum pixType = GL_RGBA, ui32 unit = 0, i32 batch = -1) {
+			if (data) {
+				i32 batchIndex = batch;
+				if (batchIndex < 0) {
+					if (unasignedTexBatch >= 32)
+						return -1;
+					batchIndex = unasignedTexBatch;
+					unasignedTexBatch++;
+				}
+
+				glBindTexture(GL_TEXTURE_2D, textures[batchIndex]);
+
+
+				// set the texture wrapping/filtering options (on the currently bound texture object)
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, pixType, GL_UNSIGNED_BYTE, data);
+				if (mipmap) {
+					glGenerateMipmap(GL_TEXTURE_2D);
+				}
+
+				batches[batchIndex + singleTexGroup.position].addTexture(textures[batchIndex]);
+
+				return batchIndex;
+			}
+
+			return -1;
+		}
+
 		void FillTriangle(float x1, float y1, float x2, float y2, float x3, float y3, float z = 0) {
 			FillTriangle({ x1,y1 }, { x2,y2 }, { x3,y3 }, z);
 		}
 		void FillTriangle(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, float z = 0) {
-			batches[0].addVertices({
+			batches[solidGroup.current + solidGroup.position].addVertices({
 				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a,
 				p2.x, p2.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a,
 				p3.x, p3.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a
@@ -132,7 +208,7 @@ namespace voi {
 		}
 		void FillQuad(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, voi::Vec2f p4, float z = 0) {
 
-			batches[0].addVertices({
+			batches[solidGroup.current + solidGroup.position].addVertices({
 				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a,
 				p2.x, p2.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a,
 				p3.x, p3.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a,
@@ -150,7 +226,40 @@ namespace voi {
 			);
 		}
 
-		void FillVertices() {
+		void TextureTri(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, float z = 0,
+			voi::Vec2f t1 = { 0.0,0.0 }, voi::Vec2f t2 = { 1.0,0.0 }, voi::Vec2f t3 = { 0.0,1.0 }) {
+
+			batches[singleTexGroup.current + singleTexGroup.position].addVertices({
+				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t1.x, t1.y,
+				p2.x, p2.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t2.x, t2.y,
+				p3.x, p3.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t3.x, t3.y
+				}, { 0, 1, 2 });
+		}
+
+		void TextureQuad(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, voi::Vec2f p4, float z = 0,
+			voi::Vec2f t1 = { 0.0,0.0 }, voi::Vec2f t2 = { 1.0,0.0 }, voi::Vec2f t3 = { 1.0,1.0 }, voi::Vec2f t4 = { 0.0,1.0 }) {
+
+			batches[singleTexGroup.current + singleTexGroup.position].addVertices({
+				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t1.x, t1.y,
+				p2.x, p2.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t2.x, t2.y,
+				p3.x, p3.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t3.x, t3.y,
+				p4.x, p4.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t4.x, t4.y
+				}, { 0, 1, 2, 2, 3, 0 });
+		}
+
+		void TextureRect(float x, float y, float w, float h, float z = 0,
+			voi::Vec2f t1 = { 0.0,0.0 }, voi::Vec2f t2 = { 1.0,0.0 }, voi::Vec2f t3 = { 1.0,1.0 }, voi::Vec2f t4 = { 0.0,1.0 }) {
+			TextureQuad(
+				{ x, y },
+				{ x + w, y },
+				{ x + w, y + h },
+				{ x, y + h },
+				z, 
+				t1, t2, t3, t4
+			);
+		}
+
+		void FillVertices(voi::Vec2f vert) {
 
 		}
 
@@ -164,15 +273,16 @@ namespace voi {
 			this->Begin();
 
 			batches[0].enableVAA({ 0,1 });
+			batches[1].enableVAA({ 0,1,2 });
 
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			for(auto &batch: batches) { batches[0].DrawBatch(); }
+			for(auto &batch: batches) { batch.DrawBatch(); }
 			glfwSwapBuffers(window);
 
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			for (auto &batch : batches) { batches[0].ReDrawBatch(); }
+			for (auto &batch : batches) { batch.ReDrawBatch(); }
 			glfwSwapBuffers(window);
 
 			frameCount++;
@@ -190,13 +300,9 @@ namespace voi {
 
 				this->Update(elapsed);
 
-				//defaultGao->setElBufferData(0, defaultElementVec, GL_DYNAMIC_DRAW);
-
-				//defaultGao->enable(0, { 0,1 });
-
-				//glDrawElements(GL_TRIANGLES, defaultElementVec.size(), GL_UNSIGNED_INT, 0);
-
-				for (auto batch : batches) { batches[0].DrawBatch(); }
+				for (auto batch : batches) {
+					batch.DrawBatch();
+				}
 
 				glfwSwapBuffers(window);
 
