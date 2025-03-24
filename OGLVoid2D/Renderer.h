@@ -118,8 +118,10 @@ namespace voi {
 
 			vertexFile.close(); fragmentFile.close();
 
+			const ui32 singleTexProgram = Shader::programLinking(vertexCode, fragmentCode);
+
 			for (int i = singleTexGroup.position; i < (singleTexGroup.position + singleTexGroup.count); i++) {
-				batches.emplace_back(mainGao, i, vertexCode.c_str(), fragmentCode.c_str(), false); //singleTexBatches
+				batches.emplace_back(mainGao, i, singleTexProgram); //singleTexBatches
 				batches[i].defineVertBufferData({ 3,4,2 });
 			}
 		}
@@ -128,6 +130,7 @@ namespace voi {
 	protected:
 		virtual void Begin() = 0;
 		virtual void Update(float deltaTime) = 0;
+		virtual void Finish() = 0;
 
 		void Clear() {
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -159,7 +162,7 @@ namespace voi {
 			return false;
 		}
 
-		ui32 AddTexture(int width, int height, const ui8 *data, bool mipmap = true, GLenum pixType = GL_RGBA, ui32 unit = 0, i32 batch = -1) {
+		ui32 AddTexture(int width, int height, const ui8 *data, bool mipmap = true, GLenum pixType = GL_RGBA, i32 batch = -1) {
 			if (data) {
 				i32 batchIndex = batch;
 				if (batchIndex < 0) {
@@ -186,6 +189,30 @@ namespace voi {
 				batches[batchIndex + singleTexGroup.position].addTexture(textures[batchIndex]);
 
 				return batchIndex;
+			}
+
+			return -1;
+		}
+
+		ui32 ChangeTexture(ui32 batch, int width, int height, const ui8* data, bool mipmap = true, GLenum pixType = GL_RGBA) {
+			if (data && batch < singleTexGroup.count) {
+
+				glBindTexture(GL_TEXTURE_2D, textures[batch]);
+
+				// set the texture wrapping/filtering options (on the currently bound texture object)
+				//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+				//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, pixType, GL_UNSIGNED_BYTE, data);
+				if (mipmap) {
+					glGenerateMipmap(GL_TEXTURE_2D);
+				}
+
+				//batches[batch + singleTexGroup.position].addTexture(textures[batch]);
+
+				return batch;
 			}
 
 			return -1;
@@ -227,7 +254,7 @@ namespace voi {
 		}
 
 		void TextureTri(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, float z = 0,
-			voi::Vec2f t1 = { 0.0,0.0 }, voi::Vec2f t2 = { 1.0,0.0 }, voi::Vec2f t3 = { 0.0,1.0 }) {
+			voi::Vec2f t1 = { 0.0,0.0 }, voi::Vec2f t2 = { 1.0,0.0 }, voi::Vec2f t3 = { 0.0,1.0 }) { 
 
 			batches[singleTexGroup.current + singleTexGroup.position].addVertices({
 				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t1.x, t1.y,
@@ -272,8 +299,8 @@ namespace voi {
 
 			this->Begin();
 
-			batches[0].enableVAA({ 0,1 });
-			batches[1].enableVAA({ 0,1,2 });
+
+			for (auto& batch : batches) { batch.enableVAA(); }
 
 			glClear(GL_COLOR_BUFFER_BIT);
 
@@ -282,7 +309,7 @@ namespace voi {
 
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			for (auto &batch : batches) { batch.ReDrawBatch(); }
+			for (auto &batch : batches) { batch.DrawBatch(); }
 			glfwSwapBuffers(window);
 
 			frameCount++;
@@ -300,7 +327,7 @@ namespace voi {
 
 				this->Update(elapsed);
 
-				for (auto batch : batches) {
+				for (auto &batch : batches) {
 					batch.DrawBatch();
 				}
 
@@ -310,6 +337,7 @@ namespace voi {
 
 				glfwPollEvents();
 			}
+			this->Finish();
 		}
 
 		static void viewportResize(GLFWwindow* window, int width, int height) {

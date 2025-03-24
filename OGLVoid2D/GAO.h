@@ -34,7 +34,6 @@ public:
 		for (int i = 0; i < COUNT; i++) {
 			glBindVertexArray(VAOs[i]);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[i]);
-			glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
 		}
 	}
 	~GAO() {
@@ -74,7 +73,7 @@ public:
 		return 0;
 	}
 
-	void bind(uint32_t i){
+	void bindVao(uint32_t i){
 		if (i < COUNT) {
 			glBindVertexArray(VAOs[i]);
 		}
@@ -82,9 +81,26 @@ public:
 			throw "Outside of range Exception";
 		}
 	}
+	void bindBuffer(uint32_t i) {
+		if (i < COUNT) {
+			glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
+		}
+		else {
+			throw "Outside of range Exception";
+		}
+	}
+	void bind(uint32_t i) {
+		if (i < COUNT) {
+			glBindVertexArray(VAOs[i]);
+			glBindBuffer(GL_ARRAY_BUFFER, VBOs[i]);
+		}
+		else {
+			throw "Outside of range Exception";
+		}
+	}
 	void enable(uint32_t i, const std::vector<uint32_t>& atrrs) {
 		if (i < COUNT) {
-			bind(i);
+			bindVao(i);
 			for (auto n : atrrs) {
 				glEnableVertexAttribArray(n);
 			}
@@ -96,7 +112,7 @@ public:
 
 	void setElBufferData(uint32_t i, const std::vector<uint32_t>& elData, GLenum usage, bool resize = false) {
 		if (i < COUNT) {
-			bind(i);
+			bindVao(i);
 
 			const size_t prevCapacity = EBOsInfo[i].capacity;
 			const size_t newSize = elData.size() * sizeof(uint32_t);
@@ -127,6 +143,7 @@ public:
 	void defineVerBufferData(uint32_t i, const std::vector<uint32_t>& attributes, GLenum usage = GL_DYNAMIC_DRAW, uint32_t size = 1000, const std::vector<float>& vertData = {}) {
 		if (i < COUNT) {
 			bind(i);
+
 			uint32_t total = std::accumulate(attributes.begin(), attributes.end(), 0);
 			uint32_t sum = 0;
 			for (uint32_t i = 0; i < attributes.size(); i++) {
@@ -168,7 +185,7 @@ public:
 
 	void setVerBufferData(uint32_t i, const std::vector<float>& vertData, bool resize = false) {
 		if (i < COUNT) {
-			bind(i);
+			bindBuffer(i);
 
 			const size_t prevCapacity = VBOsInfo[i].capacity;
 			const size_t newSize = vertData.size() * sizeof(float);
@@ -191,7 +208,7 @@ public:
 
 	void addVerBufferData(uint32_t i, const std::vector<float>& vertData) {
 		if (i < COUNT) {
-			bind(i);
+			bindBuffer(i);
 			const size_t size = VBOsInfo[i].size;
 			const size_t capacity = VBOsInfo[i].capacity;
 

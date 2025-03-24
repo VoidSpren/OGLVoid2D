@@ -26,7 +26,17 @@ public:
 			vertexFile.close(); fragmentFile.close();
 		}
 
-		programLinking(vertexCode, fragmentCode);
+		id = programLinking(vertexCode, fragmentCode);
+	}
+
+	Shader(uint32_t _id) {
+		if (glIsProgram(_id)) {
+			id = _id;
+		}
+		else {
+			id = 0;
+			std::cout << "ERROR::PROGRAM::NAME_NOT_FOUND\n" << std::endl;
+		}
 	}
 
 	void use() { glUseProgram(id); }
@@ -74,8 +84,7 @@ public:
 		);
 	}
 
-private:
-	uint32_t shaderCompilation(const char* shaderSource, GLenum type) {
+	static uint32_t shaderCompilation(const char* shaderSource, GLenum type) {
 		uint32_t shader;
 		shader = glCreateShader(type);
 
@@ -87,7 +96,7 @@ private:
 		return shader;
 	}
 
-	bool shaderErrorPrint(uint32_t shader, GLenum type) {
+	static bool shaderErrorPrint(uint32_t shader, GLenum type) {
 		int success;
 
 		glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
@@ -101,31 +110,33 @@ private:
 		return success;
 	}
 
-	void programLinking(const std::string& vertexCode,const std::string& fragmentCode) {
-		id = glCreateProgram();
+	static uint32_t programLinking(const std::string& vertexCode,const std::string& fragmentCode) {
+		uint32_t linkId = glCreateProgram();
 
 		/*compile shaders*/
 		uint32_t vertex = shaderCompilation(vertexCode.c_str(), GL_VERTEX_SHADER);
 		uint32_t fragment = shaderCompilation(fragmentCode.c_str(), GL_FRAGMENT_SHADER);
 		/*attaching the vertex and fragment shader to the program*/
-		glAttachShader(id, vertex);
-		glAttachShader(id, fragment);
+		glAttachShader(linkId, vertex);
+		glAttachShader(linkId, fragment);
 		/*linking program to opengl*/
-		glLinkProgram(id);
+		glLinkProgram(linkId);
 		/*check for errors*/
-		LINKLOG();
+		LINKLOG(linkId);
 
 		glDeleteShader(vertex); glDeleteShader(fragment);
+
+		return linkId;
 	}
 
-	void LINKLOG() {
+	static void LINKLOG(uint32_t linkId) {
 		int success;
 
-		glGetProgramiv(id, GL_LINK_STATUS, &success);
+		glGetProgramiv(linkId, GL_LINK_STATUS, &success);
 
 		if (!success) {
 			char infolog[512];
-			glGetProgramInfoLog(id, 512, NULL, infolog);
+			glGetProgramInfoLog(linkId, 512, NULL, infolog);
 			std::cout << "ERROR::PROGRAM::LINK_FAILED\n" << infolog << std::endl;
 		}
 	}

@@ -36,6 +36,11 @@ and not a console application, so the console won't be called.*/
 //		glfwSetWindowShouldClose(window, true);
 //}
 
+struct Image {
+	ui8* data;
+	int width, height, nChannels;
+};
+
 class Testing : public voi::VoiOGLEngine {
 
 	std::random_device randDev;
@@ -52,6 +57,9 @@ class Testing : public voi::VoiOGLEngine {
 
 	float timeInterval = 2*F_PI;
 	
+	Image img0;
+	Image img1;
+
 
 	voi::Vec2f lerp(voi::Vec2f a, voi::Vec2f b, float t) {
 		return a + (b - a) * t;
@@ -70,28 +78,22 @@ class Testing : public voi::VoiOGLEngine {
 	void Begin() override {
 		textureIndices.reserve(32);
 
-		int width, height, nChanels;
-		auto data = stbi_load("awesomeface.png", &width, &height, &nChanels, 4);
-		textureIndices.push_back(AddTexture(width, height, data));
-		stbi_image_free(data);
-		data = stbi_load("dimW.png", &width, &height, &nChanels, 4);
-		textureIndices.push_back(AddTexture(width, height, data));
-		stbi_image_free(data);
+		img0.data = stbi_load("awesomeface.png", &img0.width, &img0.height, &img0.nChannels, 4);
+		img1.data = stbi_load("dimW.png", &img1.width, &img1.height, &img1.nChannels, 4);
 
+		textureIndices.push_back(AddTexture(img0.width, img0.height, img0.data));
+		textureIndices.push_back(AddTexture(img1.width, img1.height, img1.data));
 		ChooseCurrentTextures(textureIndices[0]);
 
+		drawColor = { 0 };
 
-		drawColor = { 1.f,0.f,0.f,0.1f };
 		TextureRect(-0.5f, -0.5f, 1.f, 1.f);
-
-
-		ChooseCurrentTextures(textureIndices[1]);
-
 	}
 
-	void Update(float delta) override{
+	void Update(float delta) override {
 		setTitleToFramesInSecond();
-		//Clear();
+		Clear();
+
 		if (prevTimeInterval + delta >= timeInterval) {
 			prevTimeInterval = (prevTimeInterval + delta) - timeInterval;
 		}
@@ -99,7 +101,26 @@ class Testing : public voi::VoiOGLEngine {
 			prevTimeInterval += delta;
 		}
 
+		ChangeTexture(textureIndices[0], img1.width, img1.height, img1.data);
+		ChangeTexture(textureIndices[1], img0.width, img0.height, img0.data);
 
+		std::swap(img0, img1);
+		drawColor = { 0 };
+
+
+		ChooseCurrentTextures(textureIndices[1]);
+		TextureRect(-1.f, -1.f, 1.f, 1.f);
+
+		ChooseCurrentTextures(textureIndices[0]);
+		TextureRect(0.f, -1.f, 1.f, 1.f);
+		drawColor = { 1.f,0.f,0.f,1.f };
+		FillTriangle(0.f, 1.f, 1.f, 1.f, 1.f, 0.f);
+	}
+
+	void Finish() override {
+
+		stbi_image_free(img0.data);
+		stbi_image_free(img1.data);
 	}
 };
 
