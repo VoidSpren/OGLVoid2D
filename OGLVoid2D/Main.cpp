@@ -36,10 +36,7 @@ and not a console application, so the console won't be called.*/
 //		glfwSetWindowShouldClose(window, true);
 //}
 
-struct Image {
-	ui8* data;
-	int width, height, nChannels;
-};
+
 
 class Testing : public voi::VoiOGLEngine {
 
@@ -57,8 +54,8 @@ class Testing : public voi::VoiOGLEngine {
 
 	float timeInterval = 2*F_PI;
 	
-	Image img0;
-	Image img1;
+	voi::Texture img0;
+	voi::Texture img1;
 
 
 	voi::Vec2f lerp(voi::Vec2f a, voi::Vec2f b, float t) {
@@ -101,10 +98,10 @@ class Testing : public voi::VoiOGLEngine {
 			prevTimeInterval += delta;
 		}
 
-		ChangeTexture(textureIndices[0], img1.width, img1.height, img1.data);
-		ChangeTexture(textureIndices[1], img0.width, img0.height, img0.data);
+		//ChangeTexture(textureIndices[0], img1.width, img1.height, img1.data);
+		//ChangeTexture(textureIndices[1], img0.width, img0.height, img0.data);
 
-		std::swap(img0, img1);
+		//std::swap(img0, img1);
 		drawColor = { 0 };
 
 
@@ -113,8 +110,13 @@ class Testing : public voi::VoiOGLEngine {
 
 		ChooseCurrentTextures(textureIndices[0]);
 		TextureRect(0.f, -1.f, 1.f, 1.f);
-		drawColor = { 1.f,0.f,0.f,1.f };
-		FillTriangle(0.f, 1.f, 1.f, 1.f, 1.f, 0.f);
+		drawColor = { 1.f,0.f,0.f,0.2f };
+
+		TextureShape({
+			{ {0.f,1.f}, drawColor, {0.f,1.f} },
+			{ {1.f,1.f}, drawColor, {1.f,1.f} },
+			{ {1.f,0.f}, drawColor, {1.f,0.f} },
+			}, { 0, 1, 2 });
 	}
 
 	void Finish() override {
@@ -125,6 +127,8 @@ class Testing : public voi::VoiOGLEngine {
 };
 
 int main() {
+
+	std::cout << "FillVertex2D: " << sizeof(voi::FillVertex2D) << "; Vec2f: " << sizeof(voi::Vec2f) << "; Pixel: " << sizeof(voi::Pixel) << ";\n";
 
 	Testing test;
 	if (test.Construct("VoiOGLEngine", 800, 600)) test.Start();

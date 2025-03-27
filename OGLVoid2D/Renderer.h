@@ -21,6 +21,42 @@ namespace voi {
 		ui32 current;
 	};
 
+	struct Pos2D {
+		Vec2f pos;
+		float z = 0;
+
+		Pos2D(Vec2f _pos): pos(_pos){}
+		Pos2D(Vec3f _pos): pos({_pos.x, _pos.y}), z(_pos.z) {}
+	};
+
+	struct FillVertex2D {
+		Pos2D pos;
+		Pixel color;
+
+		FillVertex2D(Vec2f _pos, Pixel _color): pos(_pos), color(_color) {}
+	};
+
+	struct TexVertex2D {
+		Pos2D pos;
+		Pixel color;
+		Vec2f texCoord;
+
+		TexVertex2D(Vec2f _pos, Pixel _color, Vec2f _texCoord) : pos(_pos), color(_color), texCoord(_texCoord) {}
+	};
+
+	struct Surface {
+		Pixel* data;
+		int width, height;
+	};
+	struct Texture {
+		ui8 *data;
+		int width, height, nChannels;
+
+		Texture(): data(NULL), width(0), height(0), nChannels(0) {}
+		Texture(const Surface &other): data((ui8*)other.data), width(other.width), height(other.height), nChannels(4) {}
+	};
+
+
 	class VoiOGLEngine {
 		GLFWwindow* window;
 		Pixel clearColor = { 0.f,0.f,0.f,0.f };
@@ -221,7 +257,7 @@ namespace voi {
 		void FillTriangle(float x1, float y1, float x2, float y2, float x3, float y3, float z = 0) {
 			FillTriangle({ x1,y1 }, { x2,y2 }, { x3,y3 }, z);
 		}
-		void FillTriangle(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, float z = 0) {
+		void FillTriangle(Vec2f p1, Vec2f p2, Vec2f p3, float z = 0) {
 			batches[solidGroup.current + solidGroup.position].addVertices({
 				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a,
 				p2.x, p2.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a,
@@ -233,7 +269,7 @@ namespace voi {
 		void FillQuad(float x1, float y1, float x2, float y2, float x3, float y3, float z = 0) {
 			FillTriangle({ x1,y1 }, { x2,y2 }, { x3,y3 });
 		}
-		void FillQuad(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, voi::Vec2f p4, float z = 0) {
+		void FillQuad(Vec2f p1, Vec2f p2, Vec2f p3, Vec2f p4, float z = 0) {
 
 			batches[solidGroup.current + solidGroup.position].addVertices({
 				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a,
@@ -253,8 +289,8 @@ namespace voi {
 			);
 		}
 
-		void TextureTri(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, float z = 0,
-			voi::Vec2f t1 = { 0.0,0.0 }, voi::Vec2f t2 = { 1.0,0.0 }, voi::Vec2f t3 = { 0.0,1.0 }) { 
+		void TextureTri(Vec2f p1, Vec2f p2, Vec2f p3, float z = 0,
+			Vec2f t1 = { 0.0,0.0 }, Vec2f t2 = { 1.0,0.0 }, Vec2f t3 = { 0.0,1.0 }) { 
 
 			batches[singleTexGroup.current + singleTexGroup.position].addVertices({
 				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t1.x, t1.y,
@@ -263,8 +299,8 @@ namespace voi {
 				}, { 0, 1, 2 });
 		}
 
-		void TextureQuad(voi::Vec2f p1, voi::Vec2f p2, voi::Vec2f p3, voi::Vec2f p4, float z = 0,
-			voi::Vec2f t1 = { 0.0,0.0 }, voi::Vec2f t2 = { 1.0,0.0 }, voi::Vec2f t3 = { 1.0,1.0 }, voi::Vec2f t4 = { 0.0,1.0 }) {
+		void TextureQuad(Vec2f p1, Vec2f p2, Vec2f p3, Vec2f p4, float z = 0,
+			Vec2f t1 = { 0.0,0.0 }, Vec2f t2 = { 1.0,0.0 }, Vec2f t3 = { 1.0,1.0 }, Vec2f t4 = { 0.0,1.0 }) {
 
 			batches[singleTexGroup.current + singleTexGroup.position].addVertices({
 				p1.x, p1.y, z, drawColor.r, drawColor.g, drawColor.b, drawColor.a, t1.x, t1.y,
@@ -275,7 +311,7 @@ namespace voi {
 		}
 
 		void TextureRect(float x, float y, float w, float h, float z = 0,
-			voi::Vec2f t1 = { 0.0,0.0 }, voi::Vec2f t2 = { 1.0,0.0 }, voi::Vec2f t3 = { 1.0,1.0 }, voi::Vec2f t4 = { 0.0,1.0 }) {
+			Vec2f t1 = { 0.0,0.0 }, Vec2f t2 = { 1.0,0.0 }, Vec2f t3 = { 1.0,1.0 }, Vec2f t4 = { 0.0,1.0 }) {
 			TextureQuad(
 				{ x, y },
 				{ x + w, y },
@@ -286,9 +322,29 @@ namespace voi {
 			);
 		}
 
-		void FillVertices(voi::Vec2f vert) {
 
+
+		void FillShape(const std::vector<FillVertex2D> &vertData, const std::vector<ui32> &elements) {
+
+			const std::vector<float> floatData(
+				(float*)vertData.data(),
+				(float*)vertData.data() + (vertData.size() * ( sizeof(FillVertex2D)/sizeof(float) ))
+			);
+
+			batches[solidGroup.current + solidGroup.position].addVertices(floatData, elements);
 		}
+
+		void TextureShape(const std::vector<TexVertex2D>& vertData, const std::vector<ui32>& elements) {
+
+			const std::vector<float> floatData(
+				(float*)vertData.data(),
+				(float*)vertData.data() + (vertData.size() * (sizeof(TexVertex2D) / sizeof(float)))
+			);
+
+			batches[singleTexGroup.current + singleTexGroup.position].addVertices(floatData, elements);
+		}
+
+		
 
 	private:
 

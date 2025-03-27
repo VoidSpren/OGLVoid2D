@@ -73,7 +73,7 @@ public:
 		return -1;
 	}
 
-	void DrawBatch(bool redraw = false) {
+	void DrawBatch(GLenum mode = GL_TRIANGLES, bool redraw = false) {
 		program.use();
 		if (!redraw) gao->setElBufferData(vaoIndex, elementVec, GL_DYNAMIC_DRAW);
 		else gao->bindVao(vaoIndex);
@@ -83,7 +83,7 @@ public:
 			glBindTexture(GL_TEXTURE_2D, textureIds[i]);
 		}
 
-		glDrawElements(GL_TRIANGLES, elementVec.size(), GL_UNSIGNED_INT, 0);
+		glDrawElements(mode, elementVec.size(), GL_UNSIGNED_INT, 0);
 	}
 	void ReDrawBatch() {
 		gao->bindVao(vaoIndex);

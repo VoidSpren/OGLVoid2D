@@ -22,6 +22,7 @@ namespace voi {
 		Vec2() : x(0), y(0) {}
 		Vec2(T x, T y) : x(x), y(y) {}
 		Vec2(const Vec2& other) : x(other.x), y(other.y) {}
+		Vec2(Vec2 &&other) : x(other.x), y(other.y) {}
 
 		inline T min() const { return x < y ? x : y; }
 		inline T max() const { return x > y ? x : y; }
@@ -70,6 +71,7 @@ namespace voi {
 		Vec3() : x(0), y(0), z(0) {}
 		Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
 		Vec3(const Vec3& other) : x(other.x), y(other.y), z(other.z) {}
+		Vec3(Vec3 &&other) : x(other.x), y(other.y), z(other.z) {}
 
 		inline T min() const {}
 
@@ -109,7 +111,7 @@ namespace voi {
 	template<typename T>
 	struct Vec4 {
 		union {
-			T n[4] { 0 };
+			T n[4]{ 0 };
 			struct {
 				union { T x, r, s; };
 				union { T y, g, t; };
@@ -123,6 +125,7 @@ namespace voi {
 		Vec4(T x, T y, T z) : x(x), y(y), z(z), w((T)1) {}
 		Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
 		Vec4(const Vec4& other) : x(other.x), y(other.y), z(other.z), w(other.w) {}
+		Vec4(Vec4 &&other) : x(other.x), y(other.y), z(other.z), w(other.w) {}
 
 		inline static T dotProd3D(const Vec4& a, const Vec4& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 		inline static T dotProd4D(const Vec4& a, const Vec4& b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
